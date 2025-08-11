@@ -153,9 +153,9 @@ npm start
 ## 📊 API Endpoints
 
 ### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `GET /api/auth/profile` - Get user profile (Will be implemented soon)
+- `POST /api/users/register` - User registration
+- `POST /api/users/login` - User login
+- `GET /api/users/profile` - Get user profile (Will be implemented soon)
 
 ### Products
 - `GET /api/products` - Get all products
