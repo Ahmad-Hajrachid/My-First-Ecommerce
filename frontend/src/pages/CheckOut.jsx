@@ -9,6 +9,7 @@ import {
     useElements
 } from '@stripe/react-stripe-js'
 import axios from 'axios'
+import {useNavigate} from 'react-router'
 
 // Initialize Stripe 
 const stripePromise = loadStripe('pk_test_51RsJI9C4sT454gz4JCOQ8SZg2aM3fj1ZI3fTN0tu0APAfKHnyMne4NmBRqgC1JZ5DeS2soVMp95DhotSg3BXQsGT00NbO3VtKk')
@@ -101,7 +102,7 @@ const CheckOutForm = () => {
             console.error('Error creating payment intent:', error)
         }
     }
-
+    const navigate = useNavigate()
     // Redirect if cart is empty
     useEffect(() => {
         if (carts.length === 0 && !orderPlaced) {
@@ -283,7 +284,7 @@ const CheckOutForm = () => {
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Confirmed!</h1>
                     <p className="text-gray-600 mb-6">Thank you for your purchase. You'll receive a confirmation email shortly.</p>
                     <button 
-                        onClick={() => window.location.reload()} 
+                        onClick={() => navigate('/')} 
                         className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                         Continue Shopping
