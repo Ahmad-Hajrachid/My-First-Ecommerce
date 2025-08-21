@@ -94,7 +94,7 @@ elegant-stores/
 #### Backend (.env)
 ```env
 # Database
-MONGODB_URI=mongodb://localhost:27017/elegant-stores
+MONGODB_URI=your_mongodb_connection_string
 
 # JWT
 JWT_SECRET=your_jwt_secret_here
@@ -108,7 +108,6 @@ UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
 
 # Server
 PORT=5000
-NODE_ENV=development
 ```
 
 #### Frontend (.env)
