@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { useParams, Link, useNavigate } from 'react-router'
+import React, { useState, useEffect, useMemo, memo, useCallback } from 'react'
+import { useParams, Link } from 'react-router'
 import { useDispatch, useSelector } from 'react-redux'
 import { addToCart } from '../store/cart'
 import { 
@@ -19,47 +19,42 @@ import toast from 'react-hot-toast'
 
 const ProductDetails = () => {
   const { id } = useParams()
-  const navigate = useNavigate()
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
   const [isLiked, setIsLiked] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
   const dispatch = useDispatch()
-  const carts = useSelector(store => store.cart.items)
-
-  // Check if product is in cart
-  const cartItem = carts.find(item => item.productId === id)
+  
+  // OPTIMIZED: Only get the specific cart item, not all items
+  const cartItem = useSelector(store => 
+    store.cart.items.find(item => item.productId === id)
+  )
   const isInCart = Boolean(cartItem)
 
-  const handleMinusQuantity = () => {
-    setQuantity(quantity - 1 < 1 ? 1 : quantity - 1)
-  }
+  const totalPrice = useMemo(() => {
+    if (!product?.price) return '0.00'
+    return (product.price * quantity).toFixed(2)
+  }, [product?.price, quantity])
 
-  const handlePlusQuantity = () => {
-    setQuantity(quantity + 1)
-  }
+  // FIXED: Use useCallback instead of useMemo for event handlers
+  
 
-  useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        setLoading(true)
-        const response = await fetch(`http://localhost:4444/api/products/${id}`)
-        const productData = await response.json()
-        setProduct(productData)
-      } catch (error) {
-        console.error('Error fetching product:', error)
-        toast.error('Failed to load product')
-      } finally {
-        setLoading(false)
-      }
+  const handleMinusQuantity = ()=>{
+    if(quantity<=1){
+      setQuantity(1)
+    }else {
+      let newQuantity = quantity - 1
+      setQuantity(newQuantity)
     }
+  }
+  const handlePlusQuantity = ()=>{
+    let newQuantity = quantity + 1;
+    setQuantity(newQuantity)
+  }
 
-    fetchProduct()
-  }, [id])
-
-  const handleAddToCart = () => {
-    if (!product.price) {
+  const handleAddToCart = useCallback(() => {
+    if (!product?.price) {
       toast.error('Price information missing')
       return
     }
@@ -67,7 +62,9 @@ const ProductDetails = () => {
     dispatch(addToCart({
       productId: product._id,
       quantity: quantity,
-      price: product.price
+      price: product.price,
+      name: product.name,
+      image: product.image
     }))
     
     toast.success(`${quantity} item(s) added to cart!`, {
@@ -77,9 +74,9 @@ const ProductDetails = () => {
         color: '#fff',
       },
     })
-  }
+  }, [dispatch, product, quantity])
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
     if (navigator.share) {
       try {
         await navigator.share({
@@ -94,14 +91,47 @@ const ProductDetails = () => {
       navigator.clipboard.writeText(window.location.href)
       toast.success('Link copied to clipboard!')
     }
-  }
+  }, [product])
 
   const handleToggleLike = () => {
-    setIsLiked(!isLiked)
-    toast(isLiked ? "Removed from wishlist" : "Added to wishlist", {
-      icon: isLiked ? '💔' : '❤️',
-    })
-  }
+  const newValue = !isLiked
+  setIsLiked(newValue)
+  toast(newValue ? "Added to wishlist" : "Removed from wishlist", {
+    icon: newValue ? '❤️' : '💔',
+  })
+}
+
+  useEffect(() => {
+    const controller = new AbortController()
+    
+    const fetchProduct = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(`http://localhost:4444/api/products/${id}`, {
+          signal: controller.signal
+        })
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch product')
+        }
+        
+        const productData = await response.json()
+        setProduct(productData)
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.error('Error fetching product:', error)
+          toast.error('Failed to load product')
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchProduct()
+    return () => controller.abort()
+  }, [id])
 
   if (loading) {
     return (
@@ -132,9 +162,6 @@ const ProductDetails = () => {
       </div>
     )
   }
-
-  const rating = product.rating || 4.5
-  const reviewCount = product.reviewCount || 128
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 p-4">
@@ -194,25 +221,6 @@ const ProductDetails = () => {
             <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 leading-tight">
               {product.name}
             </h1>
-            
-            {/* Rating */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <Star 
-                    key={i} 
-                    className={`w-5 h-5 ${
-                      i < Math.floor(rating) 
-                        ? 'text-amber-400 fill-current' 
-                        : 'text-gray-300'
-                    }`} 
-                  />
-                ))}
-              </div>
-              <span className="text-lg text-gray-600">
-                {rating} ({reviewCount} reviews)
-              </span>
-            </div>
 
             {/* Price */}
             <div className="flex items-center gap-4">
@@ -276,7 +284,7 @@ const ProductDetails = () => {
                 className="flex-1 flex items-center justify-center gap-3 bg-black text-amber-400 py-4 px-8 rounded-xl text-lg font-semibold hover:bg-gray-900 hover:scale-105 transition-all duration-200 shadow-lg"
               >
                 <ShoppingCart className="w-5 h-5" />
-                Add to Cart - ${(product.price * quantity).toFixed(2)}
+                Add to Cart - ${totalPrice}
               </button>
               
               <button className="px-6 py-4 border-2 border-amber-400 text-amber-400 rounded-xl font-semibold hover:bg-amber-50/50 transition-colors">
@@ -336,4 +344,4 @@ const ProductDetails = () => {
   )
 }
 
-export default ProductDetails
+export default memo(ProductDetails)
